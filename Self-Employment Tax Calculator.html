@@ -1,115 +1,68 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Self-Employment Tax Calculator</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .embed-calculator {
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-            background-color: #f5f8f9;
-            color: #374151;
-            margin: 0;
-            width: 100%;
+        @media print {
+            .print-logo {
+                display: block !important;
+                text-align: center;
+                margin-bottom: 20px;
+                padding: 10px 0;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .print-logo img {
+                max-height: 40px;
+                width: auto;
+            }
+            .no-print {
+                display: none !important;
+            }
         }
-
-        .embed-calculator ::-webkit-scrollbar {
-            width: 8px;
-        }
-        .embed-calculator ::-webkit-scrollbar-track {
-            background: #e5e7eb;
-        }
-        .embed-calculator ::-webkit-scrollbar-thumb {
-            background: #9ca3af;
-            border-radius: 4px;
-        }
-        .embed-calculator ::-webkit-scrollbar-thumb:hover {
-            background: #6b7280;
-        }
-
-        .embed-calculator input[type=range].slider {
-            -webkit-appearance: none;
-            appearance: none;
-            height: 6px;
-            border-radius: 3px;
-            outline: none;
-            opacity: 0.9;
-            transition: opacity .2s;
-        }
-
-        .embed-calculator input[type=range].slider:hover {
-            opacity: 1;
-        }
-
-        .embed-calculator input[type=range].slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #2563EB;
-            cursor: pointer;
-            border-radius: 50%;
-            margin-top: -7px;
-            border: 2px solid white;
-            box-shadow: 0 0 0 2px #2563EB;
-        }
-
-        .embed-calculator input[type=range].slider::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
-            background: #2563EB;
-            cursor: pointer;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 0 2px #2563EB;
+        @media screen {
+            .print-logo {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
-    <div id="calculator-embed-root" class="embed-calculator">
-        <p style="text-align: center; padding: 20px; font-family: sans-serif;">Loading Calculator...</p>
-    </div>
+    <div id="calculator-root" class="bg-gray-50 p-4 rounded-lg max-w-4xl mx-auto"></div>
 
     <script type="text/babel">
-        // Constants
-        const EMBED_SS_WAGE_BASE = 176100;
-        const EMBED_SE_NET_EARNINGS_MULTIPLIER = 0.9235;
-        const EMBED_SS_TAX_RATE = 0.124;
-        const EMBED_MEDICARE_TAX_RATE = 0.029;
-        const EMBED_ADD_MEDICARE_TAX_RATE = 0.009;
+        const { useState, useCallback, useEffect } = React;
 
-        const EmbedFilingStatus = {
+        // Types and constants
+        const FilingStatus = {
             SINGLE: 'S',
             HEAD_OF_HOUSEHOLD: 'H',
             MARRIED_SEPARATELY: 'MS',
             MARRIED_JOINTLY: 'MJ',
         };
 
-        const EMBED_ADD_MEDICARE_THRESHOLDS = {
-            [EmbedFilingStatus.SINGLE]: 200000,
-            [EmbedFilingStatus.HEAD_OF_HOUSEHOLD]: 200000,
-            [EmbedFilingStatus.MARRIED_JOINTLY]: 250000,
-            [EmbedFilingStatus.MARRIED_SEPARATELY]: 125000,
-        };
+        const SS_WAGE_BASE = 176100;
+        const SE_NET_EARNINGS_MULTIPLIER = 0.9235;
+        const SS_TAX_RATE = 0.124;
+        const MEDICARE_TAX_RATE = 0.029;
+        const ADD_MEDICARE_TAX_RATE = 0.009;
 
-        const EMBED_FILING_STATUS_OPTIONS = [
-            { value: EmbedFilingStatus.SINGLE, label: 'Single' },
-            { value: EmbedFilingStatus.HEAD_OF_HOUSEHOLD, label: 'Head of Household' },
-            { value: EmbedFilingStatus.MARRIED_SEPARATELY, label: 'Married - Separately' },
-            { value: EmbedFilingStatus.MARRIED_JOINTLY, label: 'Married - Jointly' },
-        ];
+        const ADD_MEDICARE_THRESHOLDS = {
+            [FilingStatus.SINGLE]: 200000,
+            [FilingStatus.HEAD_OF_HOUSEHOLD]: 200000,
+            [FilingStatus.MARRIED_JOINTLY]: 250000,
+            [FilingStatus.MARRIED_SEPARATELY]: 125000,
+        };
 
         // Utility functions
         const formatNumberWithCommas = (value) => {
             const num = Number(value);
-            if (isNaN(num)) {
-                return String(value);
-            }
+            if (isNaN(num)) return String(value);
             return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
         };
 
@@ -122,23 +75,46 @@
             });
         };
 
-        // Components
-        const EmbedFooter = () => {
-            return React.createElement('footer', { className: "mt-12 py-8 text-center text-xs text-gray-500" },
-                React.createElement('div', { className: "container mx-auto px-4 sm:px-6 lg:px-8" },
-                    React.createElement('div', { className: "mb-4 p-4 md:p-6 border border-gray-200 rounded-lg bg-gray-100 max-w-3xl mx-auto text-gray-600" },
-                        React.createElement('p', { className: "leading-relaxed" },
-                            'This information may help you analyze your financial needs. It is based on information and assumptions provided by you regarding your goals, expectations and financial situation. The calculations do not infer that the company assumes any fiduciary duties. The calculations provided should not be construed as financial, legal or tax advice. In addition, such information should not be relied upon as the only source of information. This information is supplied from sources we believe to be reliable but we cannot guarantee its accuracy. Hypothetical illustrations may provide historical or current performance information. Past performance does not guarantee nor indicate future results.'
-                        )
-                    )
-                )
-            );
+        // Tax calculation function
+        const calculateSETax = (inputs) => {
+            const { selfEmployedIncome, employerIncome, taxStatus } = inputs;
+            const warnings = [];
+
+            const netEarningsFromSE = selfEmployedIncome * SE_NET_EARNINGS_MULTIPLIER;
+
+            let maxSSTaxableForSE = SS_WAGE_BASE - employerIncome;
+            if (maxSSTaxableForSE < 0) maxSSTaxableForSE = 0;
+            
+            const actualEarningsSubjectToSS = Math.min(netEarningsFromSE, maxSSTaxableForSE);
+            const socialSecurityTax = actualEarningsSubjectToSS > 0 ? actualEarningsSubjectToSS * SS_TAX_RATE : 0;
+
+            const medicareTax = netEarningsFromSE * MEDICARE_TAX_RATE;
+
+            let additionalMedicareTax = 0;
+            const totalCompensationForAddMedicare = netEarningsFromSE + employerIncome;
+            const threshold = ADD_MEDICARE_THRESHOLDS[taxStatus];
+
+            if (totalCompensationForAddMedicare > threshold) {
+                additionalMedicareTax = (totalCompensationForAddMedicare - threshold) * ADD_MEDICARE_TAX_RATE;
+            }
+            if (additionalMedicareTax < 0) additionalMedicareTax = 0;
+
+            const totalSelfEmploymentTax = socialSecurityTax + medicareTax + additionalMedicareTax;
+            const deductibleSETax = totalSelfEmploymentTax * 0.5;
+
+            return {
+                netSelfEmploymentEarnings: parseFloat(netEarningsFromSE.toFixed(2)),
+                socialSecurityTax: parseFloat(socialSecurityTax.toFixed(2)),
+                medicareTax: parseFloat(medicareTax.toFixed(2)),
+                additionalMedicareTax: parseFloat(additionalMedicareTax.toFixed(2)),
+                totalSelfEmploymentTax: parseFloat(totalSelfEmploymentTax.toFixed(2)),
+                deductibleSETax: parseFloat(deductibleSETax.toFixed(2)),
+                warnings,
+            };
         };
 
-        // ... keep existing code (EmbedInputSliderField, EmbedPieChartDisplay, EmbedCalculatorForm, EmbedResultsDisplay components)
-
-        const EmbedInputSliderField = ({ label, id, value, onChange, min = 0, max = 1000000, step = 1000, unit = "$", errorMessage }) => {
-            const { useState, useCallback, useEffect } = React;
+        // Components
+        const InputSliderField = ({ label, id, value, onChange, min = 0, max = 1000000, step = 1000, unit = "$", errorMessage }) => {
             const [displayValue, setDisplayValue] = useState(formatNumberWithCommas(value));
 
             useEffect(() => {
@@ -179,46 +155,55 @@
                 setDisplayValue(formatNumberWithCommas(numericValue));
             }, [onChange]);
 
-            return React.createElement('div', { className: "mb-2" },
-                React.createElement('label', { htmlFor: id, className: "block text-sm font-medium text-gray-700 mb-1" },
-                    label, unit && React.createElement('span', { className: "text-gray-500" }, ` (${unit})`)
-                ),
-                React.createElement('div', { className: "relative" },
-                    unit === "$" && React.createElement('span', { className: "absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" }, '$'),
-                    React.createElement('input', {
-                        type: "text",
-                        id: id,
-                        value: unit === "$" && !displayValue.startsWith('$') && displayValue !== '' ? displayValue : displayValue.replace(/^\$/, ''),
-                        onChange: handleInputChange,
-                        onBlur: handleInputBlur,
-                        className: `w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${unit === "$" ? "pl-6" : "pl-3"}`,
-                        'aria-describedby': errorMessage ? `${id}-error` : undefined
-                    })
-                ),
-                React.createElement('input', {
-                    type: "range",
-                    id: `${id}-slider`,
-                    min: min,
-                    max: max,
-                    step: step,
-                    value: value,
-                    onChange: handleSliderChange,
-                    className: "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-3 slider",
-                    'aria-labelledby': id,
-                    style: {
-                        background: `linear-gradient(to right, #2563EB 0%, #2563EB ${((value - min) / (max - min)) * 100}%, #D1D5DB ${((value - min) / (max - min)) * 100}%, #D1D5DB 100%)`
-                    }
-                }),
-                errorMessage && React.createElement('p', { id: `${id}-error`, className: "mt-1 text-xs text-red-500" }, errorMessage)
+            const sliderBackground = `linear-gradient(to right, #2563EB 0%, #2563EB ${((value - min) / (max - min)) * 100}%, #D1D5DB ${((value - min) / (max - min)) * 100}%, #D1D5DB 100%)`;
+
+            return (
+                <div className="mb-2">
+                    <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+                        {label}
+                        {unit && <span className="text-gray-500"> ({unit})</span>}
+                    </label>
+                    <div className="relative">
+                        {unit === "$" && (
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none">
+                                $
+                            </span>
+                        )}
+                        <input
+                            type="text"
+                            id={id}
+                            value={unit === "$" && !displayValue.startsWith('$') && displayValue !== '' ? displayValue : displayValue.replace(/^\$/, '')}
+                            onChange={handleInputChange}
+                            onBlur={handleInputBlur}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${unit === "$" ? "pl-6" : "pl-3"}`}
+                        />
+                    </div>
+                    <input
+                        type="range"
+                        id={`${id}-slider`}
+                        min={min}
+                        max={max}
+                        step={step}
+                        value={value}
+                        onChange={handleSliderChange}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-3"
+                        style={{ background: sliderBackground }}
+                    />
+                    {errorMessage && (
+                        <p className="mt-1 text-xs text-red-500">{errorMessage}</p>
+                    )}
+                </div>
             );
         };
 
-        const EmbedPieChartDisplay = ({ socialSecurityTax, totalMedicareTax }) => {
+        const PieChartDisplay = ({ socialSecurityTax, totalMedicareTax }) => {
             const total = socialSecurityTax + totalMedicareTax;
             
             if (socialSecurityTax === 0 && totalMedicareTax === 0) {
-                return React.createElement('div', { className: "text-center py-6 text-gray-500 text-sm" },
-                    'No self-employment tax amounts to display in chart.'
+                return (
+                    <div className="text-center py-6 text-gray-500 text-sm">
+                        No self-employment tax amounts to display in chart.
+                    </div>
                 );
             }
 
@@ -231,63 +216,166 @@
             const medicareStrokeDasharray = `${(medicarePercentage / 100) * circumference} ${circumference}`;
             const medicareStrokeDashoffset = -((socialSecurityPercentage / 100) * circumference);
 
-            return React.createElement('div', { className: "flex flex-col items-center" },
-                React.createElement('div', { className: "relative w-48 h-48 mb-4" },
-                    React.createElement('svg', { className: "w-full h-full transform -rotate-90", viewBox: "0 0 200 200" },
-                        React.createElement('circle', {
-                            cx: "100",
-                            cy: "100",
-                            r: radius,
-                            fill: "transparent",
-                            stroke: "#E5E7EB",
-                            strokeWidth: "20"
-                        }),
-                        socialSecurityTax > 0 && React.createElement('circle', {
-                            cx: "100",
-                            cy: "100",
-                            r: radius,
-                            fill: "transparent",
-                            stroke: "#0B9191",
-                            strokeWidth: "20",
-                            strokeDasharray: socialSecurityStrokeDasharray,
-                            strokeLinecap: "round"
-                        }),
-                        totalMedicareTax > 0 && React.createElement('circle', {
-                            cx: "100",
-                            cy: "100",
-                            r: radius,
-                            fill: "transparent",
-                            stroke: "#E87008",
-                            strokeWidth: "20",
-                            strokeDasharray: medicareStrokeDasharray,
-                            strokeDashoffset: medicareStrokeDashoffset,
-                            strokeLinecap: "round"
-                        })
-                    ),
-                    React.createElement('div', { className: "absolute inset-0 flex items-center justify-center" },
-                        React.createElement('div', { className: "text-center" },
-                            React.createElement('div', { className: "text-lg font-bold text-gray-800" }, formatCurrency(total)),
-                            React.createElement('div', { className: "text-sm text-gray-600" }, 'Total')
-                        )
-                    )
-                ),
-                React.createElement('div', { className: "flex flex-col space-y-2 text-sm" },
-                    socialSecurityTax > 0 && React.createElement('div', { className: "flex items-center space-x-2" },
-                        React.createElement('div', { className: "w-4 h-4 bg-[#0B9191] rounded" }),
-                        React.createElement('span', null, `Social Security: ${formatCurrency(socialSecurityTax)} (${socialSecurityPercentage.toFixed(0)}%)`)
-                    ),
-                    totalMedicareTax > 0 && React.createElement('div', { className: "flex items-center space-x-2" },
-                        React.createElement('div', { className: "w-4 h-4 bg-[#E87008] rounded" }),
-                        React.createElement('span', null, `Medicare: ${formatCurrency(totalMedicareTax)} (${medicarePercentage.toFixed(0)}%)`)
-                    )
-                )
+            return (
+                <div className="flex flex-col items-center">
+                    <div className="relative w-48 h-48 mb-4">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
+                            <circle cx="100" cy="100" r={radius} fill="transparent" stroke="#E5E7EB" strokeWidth="20" />
+                            {socialSecurityTax > 0 && (
+                                <circle
+                                    cx="100" cy="100" r={radius} fill="transparent" stroke="#0B9191" strokeWidth="20"
+                                    strokeDasharray={socialSecurityStrokeDasharray} strokeLinecap="round"
+                                />
+                            )}
+                            {totalMedicareTax > 0 && (
+                                <circle
+                                    cx="100" cy="100" r={radius} fill="transparent" stroke="#E87008" strokeWidth="20"
+                                    strokeDasharray={medicareStrokeDasharray} strokeDashoffset={medicareStrokeDashoffset} strokeLinecap="round"
+                                />
+                            )}
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-center">
+                                <div className="text-lg font-bold text-gray-800">{formatCurrency(total)}</div>
+                                <div className="text-sm text-gray-600">Total</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex flex-col space-y-2 text-sm">
+                        {socialSecurityTax > 0 && (
+                            <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 bg-teal-600 rounded"></div>
+                                <span>Social Security: {formatCurrency(socialSecurityTax)} ({socialSecurityPercentage.toFixed(0)}%)</span>
+                            </div>
+                        )}
+                        {totalMedicareTax > 0 && (
+                            <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 bg-orange-600 rounded"></div>
+                                <span>Medicare: {formatCurrency(totalMedicareTax)} ({medicarePercentage.toFixed(0)}%)</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
             );
         };
 
-        const EmbedCalculatorForm = ({ onCalculate, initialValues }) => {
-            const { useState, useCallback } = React;
+        const ResultRow = ({ label, value, isTotal = false, isSubtle = false }) => (
+            <div className={`flex justify-between py-3 px-4 
+                ${isTotal ? 'font-semibold text-lg border-t-2 border-gray-300 bg-blue-50 text-blue-700' : 'border-b border-gray-200'} 
+                ${isSubtle ? 'text-sm' : ''}
+                bg-white hover:bg-gray-50 transition-colors duration-150 ease-in-out`}
+            >
+                <span className={isSubtle ? 'text-gray-600' : 'text-gray-700'}>
+                    {label}:
+                </span>
+                <span className={`${isTotal ? 'text-blue-600' : (isSubtle ? 'text-gray-800' : 'text-gray-900 font-medium')}`}>
+                    {value}
+                </span>
+            </div>
+        );
+
+        const ResultsDisplay = ({ results }) => {
+            if (!results) return null;
+
+            const totalMedicareTax = results.medicareTax + results.additionalMedicareTax;
+
+            const handlePrint = () => {
+                window.print();
+            };
+
+            return (
+                <div className="bg-white p-6 md:p-8 shadow-lg rounded-lg">
+                    <div className="print-logo">
+                        <img src="https://via.placeholder.com/120x40/4F46E5/FFFFFF?text=Powered+by+Otto" alt="Powered by Otto" />
+                    </div>
+
+                    <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-6 pb-3 border-b-2 border-blue-500">
+                        Calculation Results
+                    </h2>
+                    
+                    {results.warnings.length > 0 && (
+                        <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 rounded-md">
+                            {results.warnings.map((warning, index) => (
+                                <p key={index} className="text-sm">{warning}</p>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="space-y-0 overflow-hidden rounded-md border border-gray-200 shadow-sm mb-6">
+                        <ResultRow 
+                            label="Net Self-Employment Earnings (Subject to SE Tax)" 
+                            value={formatCurrency(results.netSelfEmploymentEarnings)} 
+                        />
+                        <ResultRow 
+                            label="Social Security Tax" 
+                            value={formatCurrency(results.socialSecurityTax)} 
+                        />
+                        <ResultRow 
+                            label="Medicare Tax (Regular)" 
+                            value={formatCurrency(results.medicareTax)} 
+                            isSubtle={results.additionalMedicareTax > 0}
+                        />
+                        {results.additionalMedicareTax > 0 && (
+                            <ResultRow 
+                                label="Additional Medicare Tax" 
+                                value={formatCurrency(results.additionalMedicareTax)} 
+                                isSubtle={true}
+                            />
+                        )}
+                        <ResultRow 
+                            label="Total Self-Employment Tax" 
+                            value={formatCurrency(results.totalSelfEmploymentTax)} 
+                            isTotal={true}
+                        />
+                    </div>
+
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                        <h3 className="text-md font-semibold text-blue-700 mb-1">
+                            For Your Income Tax Return:
+                        </h3>
+                        <p className="text-sm text-blue-600">
+                            Deductible Part of SE Tax (1/2 of Total SE Tax): 
+                            <span className="font-bold ml-1">{formatCurrency(results.deductibleSETax)}</span>
+                        </p>
+                        <p className="text-xs text-blue-500 mt-2">
+                            This amount can typically be deducted as an adjustment to income on your Form 1040.
+                        </p>
+                    </div>
+
+                    {(results.socialSecurityTax > 0 || totalMedicareTax > 0) && (
+                        <div className="bg-gray-50 p-4 md:p-6 rounded-lg my-6 border border-gray-200">
+                            <h3 className="text-lg font-semibold text-gray-700 mb-4 text-center">
+                                Tax Breakdown
+                            </h3>
+                            <div className="flex justify-center">
+                                <PieChartDisplay
+                                    socialSecurityTax={results.socialSecurityTax}
+                                    totalMedicareTax={totalMedicareTax}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <button
+                        onClick={handlePrint}
+                        className="w-full bg-white text-blue-600 border border-blue-600 font-semibold py-3 px-6 rounded-md hover:bg-blue-50 transition-colors duration-200 no-print"
+                    >
+                        Print Results
+                    </button>
+                </div>
+            );
+        };
+
+        const CalculatorForm = ({ onCalculate, initialValues }) => {
             const [inputs, setInputs] = useState(initialValues);
             const [errors, setErrors] = useState({});
+
+            const FILING_STATUS_OPTIONS = [
+                { value: FilingStatus.SINGLE, label: 'Single' },
+                { value: FilingStatus.HEAD_OF_HOUSEHOLD, label: 'Head of Household' },
+                { value: FilingStatus.MARRIED_SEPARATELY, label: 'Married - Separately' },
+                { value: FilingStatus.MARRIED_JOINTLY, label: 'Married - Jointly' },
+            ];
 
             const validate = useCallback(() => {
                 const newErrors = {};
@@ -315,226 +403,73 @@
                 }
             }, [errors]);
 
-            return React.createElement('form', { onSubmit: handleSubmit, className: "space-y-0" },
-                React.createElement('div', { className: "bg-white p-6 md:p-8 shadow-lg rounded-lg" },
-                    React.createElement('h2', { className: "text-xl font-semibold text-gray-800 mb-6 border-b pb-3" }, 'Wage Information'),
-                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6" },
-                        React.createElement(EmbedInputSliderField, {
-                            label: "Annual self-employment income",
-                            id: "selfEmployedIncome",
-                            value: inputs.selfEmployedIncome,
-                            onChange: (val) => handleChange('selfEmployedIncome', val),
-                            min: 0,
-                            max: 1000000,
-                            step: 1000,
-                            unit: "$",
-                            errorMessage: errors.selfEmployedIncome
-                        }),
-                        React.createElement(EmbedInputSliderField, {
-                            label: "Annual employer income (already taxed)",
-                            id: "employerIncome",
-                            value: inputs.employerIncome,
-                            onChange: (val) => handleChange('employerIncome', val),
-                            min: 0,
-                            max: 1000000,
-                            step: 1000,
-                            unit: "$",
-                            errorMessage: errors.employerIncome
-                        })
-                    ),
-                    React.createElement('div', { className: "mt-6" },
-                        React.createElement('label', { htmlFor: "taxStatus", className: "block text-sm font-medium text-gray-700 mb-1" },
-                            'Tax filing status'
-                        ),
-                        React.createElement('select', {
-                            id: "taxStatus",
-                            value: inputs.taxStatus,
-                            onChange: (e) => handleChange('taxStatus', e.target.value),
-                            className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                        },
-                            EMBED_FILING_STATUS_OPTIONS.map(opt => 
-                                React.createElement('option', { key: opt.value, value: opt.value }, opt.label)
-                            )
-                        )
-                    ),
-                    React.createElement('div', { className: "mt-8" },
-                        React.createElement('button', {
-                            type: "submit",
-                            className: "w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-md hover:bg-blue-700 transition-colors duration-200",
-                            'aria-label': "Calculate self-employment tax"
-                        }, 'Calculate')
-                    )
-                )
+            return (
+                <form onSubmit={handleSubmit} className="space-y-0">
+                    <div className="bg-white p-6 md:p-8 shadow-lg rounded-lg">
+                        <h2 className="text-xl font-semibold text-gray-800 mb-6 border-b pb-3">
+                            Wage Information
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+                            <InputSliderField
+                                label="Annual self-employment income"
+                                id="selfEmployedIncome"
+                                value={inputs.selfEmployedIncome}
+                                onChange={(val) => handleChange('selfEmployedIncome', val)}
+                                min={0}
+                                max={1000000}
+                                step={1000}
+                                unit="$"
+                                errorMessage={errors.selfEmployedIncome}
+                            />
+                            <InputSliderField
+                                label="Annual employer income (already taxed)"
+                                id="employerIncome"
+                                value={inputs.employerIncome}
+                                onChange={(val) => handleChange('employerIncome', val)}
+                                min={0}
+                                max={1000000}
+                                step={1000}
+                                unit="$"
+                                errorMessage={errors.employerIncome}
+                            />
+                        </div>
+                        <div className="mt-6">
+                            <label htmlFor="taxStatus" className="block text-sm font-medium text-gray-700 mb-1">
+                                Tax filing status
+                            </label>
+                            <select
+                                id="taxStatus"
+                                value={inputs.taxStatus}
+                                onChange={(e) => handleChange('taxStatus', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            >
+                                {FILING_STATUS_OPTIONS.map(opt => 
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                )}
+                            </select>
+                        </div>
+                        <div className="mt-8">
+                            <button
+                                type="submit"
+                                className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-md hover:bg-blue-700 transition-colors duration-200"
+                            >
+                                Calculate
+                            </button>
+                        </div>
+                    </div>
+                </form>
             );
         };
 
-        const EmbedResultsDisplay = ({ results }) => {
-            const { useState, useEffect } = React;
-            const [copiedMessageVisible, setCopiedMessageVisible] = useState(false);
-
-            useEffect(() => {
-                let timer;
-                if (copiedMessageVisible) {
-                    timer = window.setTimeout(() => {
-                        setCopiedMessageVisible(false);
-                    }, 3000);
-                }
-                return () => clearTimeout(timer);
-            }, [copiedMessageVisible]);
-
-            if (!results) {
-                return null;
-            }
-
-            const ResultRow = ({ label, value, isTotal = false, isSubtle = false }) => 
-                React.createElement('div', { 
-                    className: `flex justify-between py-3 px-4 
-                        ${isTotal ? 'font-semibold text-lg border-t-2 border-gray-300 bg-blue-50 text-blue-700' : 'border-b border-gray-200'} 
-                        ${isSubtle ? 'text-sm' : ''}
-                        bg-white hover:bg-gray-50 transition-colors duration-150 ease-in-out`
-                },
-                    React.createElement('span', { className: isSubtle ? 'text-gray-600' : 'text-gray-700' }, `${label}:`),
-                    React.createElement('span', { className: `${isTotal ? 'text-blue-600' : (isSubtle ? 'text-gray-800' : 'text-gray-900 font-medium')}` }, value)
-                );
-            
-            const totalMedicareTax = results.medicareTax + results.additionalMedicareTax;
-
-            const handleShare = async () => {
-                if (!results) return;
-
-                const shareText = `My Self-Employment Tax Estimate:
-- Net Self-Employment Earnings: ${formatCurrency(results.netSelfEmploymentEarnings)}
-- Social Security Tax: ${formatCurrency(results.socialSecurityTax)}
-- Medicare Tax: ${formatCurrency(totalMedicareTax)}
-- Total Self-Employment Tax: ${formatCurrency(results.totalSelfEmploymentTax)}  
-- Deductible Part of SE Tax: ${formatCurrency(results.deductibleSETax)}
-
-Calculated using the Self-Employment Tax Calculator.`;
-
-                const shareData = {
-                    title: 'Self-Employment Tax Calculation Results',
-                    text: shareText,
-                };
-
-                if (navigator.share) {
-                    try {
-                        await navigator.share(shareData);
-                    } catch (err) {
-                        // console.error('Error sharing:', err);
-                    }
-                } else {
-                    try {
-                        await navigator.clipboard.writeText(shareText);
-                        setCopiedMessageVisible(true);
-                    } catch (err) {
-                        console.error('Failed to copy results:', err);
-                        alert('Failed to copy results to clipboard.');
-                    }
-                }
-            };
-
-            return React.createElement('div', { className: "bg-white p-6 md:p-8 shadow-lg rounded-lg" },
-                React.createElement('h2', { className: "text-xl sm:text-2xl font-semibold text-gray-800 mb-6 pb-3 border-b-2 border-blue-500" },
-                    'Calculation Results'
-                ),
-                
-                results.warnings.length > 0 && React.createElement('div', { className: "mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 rounded-md" },
-                    results.warnings.map((warning, index) =>
-                        React.createElement('p', { key: index, className: "text-sm" }, warning)
-                    )
-                ),
-
-                React.createElement('div', { className: "space-y-0 overflow-hidden rounded-md border border-gray-200 shadow-sm mb-6" },
-                    React.createElement(ResultRow, { label: "Net Self-Employment Earnings (Subject to SE Tax)", value: formatCurrency(results.netSelfEmploymentEarnings) }),
-                    React.createElement(ResultRow, { label: "Social Security Tax", value: formatCurrency(results.socialSecurityTax) }),
-                    React.createElement(ResultRow, { label: "Medicare Tax (Regular)", value: formatCurrency(results.medicareTax), isSubtle: results.additionalMedicareTax > 0 }),
-                    results.additionalMedicareTax > 0 && React.createElement(ResultRow, { label: "Additional Medicare Tax", value: formatCurrency(results.additionalMedicareTax), isSubtle: true }),
-                    React.createElement(ResultRow, { label: "Total Self-Employment Tax", value: formatCurrency(results.totalSelfEmploymentTax), isTotal: true })
-                ),
-
-                React.createElement('div', { className: "mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md" },
-                    React.createElement('h3', { className: "text-md font-semibold text-blue-700 mb-1" }, 'For Your Income Tax Return:'),
-                    React.createElement('p', { className: "text-sm text-blue-600" },
-                        'Deductible Part of SE Tax (1/2 of Total SE Tax): ',
-                        React.createElement('span', { className: "font-bold" }, formatCurrency(results.deductibleSETax))
-                    ),
-                    React.createElement('p', { className: "text-xs text-blue-500 mt-2" },
-                        'This amount can typically be deducted as an adjustment to income on your Form 1040.'
-                    )
-                ),
-
-                (results.socialSecurityTax > 0 || totalMedicareTax > 0) && React.createElement('div', { className: "bg-gray-50 p-4 md:p-6 rounded-lg my-6 border border-gray-200" },
-                    React.createElement('h3', { className: "text-lg font-semibold text-gray-700 mb-4 text-center" },
-                        'Tax Breakdown'
-                    ),
-                    React.createElement('div', { className: "flex justify-center" },
-                        React.createElement(EmbedPieChartDisplay, {
-                            socialSecurityTax: results.socialSecurityTax,
-                            totalMedicareTax: totalMedicareTax
-                        })
-                    )
-                ),
-
-                React.createElement('button', {
-                    onClick: handleShare,
-                    className: "w-full bg-white text-blue-600 border border-blue-600 font-semibold py-3 px-6 rounded-md hover:bg-blue-50 transition-colors duration-200",
-                    'aria-label': "Share calculation results"
-                },
-                    'Share Results'
-                ),
-                copiedMessageVisible && React.createElement('p', { className: "text-center text-sm text-green-600 mt-3", role: "status" },
-                    'Results copied to clipboard!'
-                )
-            );
-        };
-
-        const EmbedApp = () => {
-            const { useState, useCallback } = React;
-            
+        // Main Calculator App
+        const SelfEmploymentTaxCalculator = () => {
             const initialInputs = {
                 selfEmployedIncome: 0,
                 employerIncome: 0,
-                taxStatus: EmbedFilingStatus.MARRIED_JOINTLY,
+                taxStatus: FilingStatus.MARRIED_JOINTLY,
             };
 
             const [results, setResults] = useState(null);
-
-            const calculateSETax = useCallback((inputs) => {
-                const { selfEmployedIncome, employerIncome, taxStatus } = inputs;
-                const warnings = [];
-
-                const netEarningsFromSE = selfEmployedIncome * EMBED_SE_NET_EARNINGS_MULTIPLIER;
-
-                let maxSSTaxableForSE = EMBED_SS_WAGE_BASE - employerIncome;
-                if (maxSSTaxableForSE < 0) maxSSTaxableForSE = 0;
-                
-                const actualEarningsSubjectToSS = Math.min(netEarningsFromSE, maxSSTaxableForSE);
-                const socialSecurityTax = actualEarningsSubjectToSS > 0 ? actualEarningsSubjectToSS * EMBED_SS_TAX_RATE : 0;
-
-                const medicareTax = netEarningsFromSE * EMBED_MEDICARE_TAX_RATE;
-
-                let additionalMedicareTax = 0;
-                const totalCompensationForAddMedicare = netEarningsFromSE + employerIncome;
-                const threshold = EMBED_ADD_MEDICARE_THRESHOLDS[taxStatus];
-
-                if (totalCompensationForAddMedicare > threshold) {
-                    additionalMedicareTax = (totalCompensationForAddMedicare - threshold) * EMBED_ADD_MEDICARE_TAX_RATE;
-                }
-                if (additionalMedicareTax < 0) additionalMedicareTax = 0;
-
-                const totalSelfEmploymentTax = socialSecurityTax + medicareTax + additionalMedicareTax;
-                const deductibleSETax = totalSelfEmploymentTax * 0.5;
-
-                return {
-                    netSelfEmploymentEarnings: parseFloat(netEarningsFromSE.toFixed(2)),
-                    socialSecurityTax: parseFloat(socialSecurityTax.toFixed(2)),
-                    medicareTax: parseFloat(medicareTax.toFixed(2)),
-                    additionalMedicareTax: parseFloat(additionalMedicareTax.toFixed(2)),
-                    totalSelfEmploymentTax: parseFloat(totalSelfEmploymentTax.toFixed(2)),
-                    deductibleSETax: parseFloat(deductibleSETax.toFixed(2)),
-                    warnings,
-                };
-            }, []);
 
             const handleCalculate = useCallback((inputs) => {
                 const calculatedResults = calculateSETax(inputs);
@@ -545,33 +480,46 @@ Calculated using the Self-Employment Tax Calculator.`;
                         resultsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                 }, 0);
-            }, [calculateSETax]);
+            }, []);
 
-            return React.createElement('div', { className: "flex flex-col min-h-screen", style: { backgroundColor: '#f5f8f9' } },
-                React.createElement('main', { className: "flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12" },
-                    React.createElement('div', { className: "max-w-3xl mx-auto" },
-                        React.createElement(EmbedCalculatorForm, { onCalculate: handleCalculate, initialValues: initialInputs }),
-                        
-                        results && React.createElement('div', { id: "results-section", className: "mt-8 md:mt-10" },
-                            React.createElement(EmbedResultsDisplay, { results: results })
-                        )
-                    )
-                ),
-                React.createElement(EmbedFooter)
+            return (
+                <div className="flex flex-col min-h-screen bg-gray-50">
+                    <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+                        <div className="max-w-3xl mx-auto">
+                            <div className="text-center mb-8">
+                                <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+                                    Self-Employment Tax Calculator
+                                </h1>
+                                <p className="text-gray-600">
+                                    Calculate your self-employment taxes for Social Security and Medicare
+                                </p>
+                            </div>
+                            
+                            <CalculatorForm onCalculate={handleCalculate} initialValues={initialInputs} />
+                            
+                            {results && (
+                                <div id="results-section" className="mt-8 md:mt-10">
+                                    <ResultsDisplay results={results} />
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                    
+                    <footer className="mt-12 py-8 text-center text-xs text-gray-500">
+                        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="mb-4 p-4 md:p-6 border border-gray-200 rounded-lg bg-gray-100 max-w-3xl mx-auto text-gray-600">
+                                <p className="leading-relaxed">
+                                    This information may help you analyze your financial needs. It is based on information and assumptions provided by you regarding your goals, expectations and financial situation. The calculations do not infer that the company assumes any fiduciary duties. The calculations provided should not be construed as financial, legal or tax advice. In addition, such information should not be relied upon as the only source of information. This information is supplied from sources we believe to be reliable but we cannot guarantee its accuracy. Hypothetical illustrations may provide historical or current performance information. Past performance does not guarantee nor indicate future results.
+                                </p>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
             );
         };
 
-        // Main application initialization
-        const { useState, useCallback, useEffect } = React;
-
         // Render the app
-        const rootElement = document.getElementById('calculator-embed-root');
-        if (!rootElement) {
-            throw new Error("Could not find root element to mount to");
-        }
-
-        const root = ReactDOM.createRoot(rootElement);
-        root.render(React.createElement(EmbedApp));
+        ReactDOM.render(<SelfEmploymentTaxCalculator />, document.getElementById('calculator-root'));
     </script>
 </body>
 </html>
