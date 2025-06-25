@@ -273,90 +273,86 @@
                 </span>
             </div>
         );
+const ResultsDisplay = ({ results }) => {
+    if (!results) return null;
 
-        const ResultsDisplay = ({ results }) => {
-            if (!results) return null;
+    const totalMedicareTax = results.medicareTax + results.additionalMedicareTax;
 
-            const totalMedicareTax = results.medicareTax + results.additionalMedicareTax;
+    return (
+        <div className="bg-white p-6 md:p-8 shadow-lg rounded-lg">
+            <div className="print-logo">
+                <img src="https://via.placeholder.com/120x40/4F46E5/FFFFFF?text=Powered+by+Otto" alt="Powered by Otto" />
+            </div>
 
-            const handlePrint = () => {
-                window.print();
-            };
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-6 pb-3 border-b-2 border-blue-500">
+                Calculation Results
+            </h2>
+            
+            {results.warnings.length > 0 && (
+                <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 rounded-md">
+                    {results.warnings.map((warning, index) => (
+                        <p key={index} className="text-sm">{warning}</p>
+                    ))}
+                </div>
+            )}
 
-            return (
-                <div className="bg-white p-6 md:p-8 shadow-lg rounded-lg">
-                    <div className="print-logo">
-                        <img src="https://via.placeholder.com/120x40/4F46E5/FFFFFF?text=Powered+by+Otto" alt="Powered by Otto" />
+            <div className="space-y-0 overflow-hidden rounded-md border border-gray-200 shadow-sm mb-6">
+                <ResultRow 
+                    label="Net Self-Employment Earnings (Subject to SE Tax)" 
+                    value={formatCurrency(results.netSelfEmploymentEarnings)} 
+                />
+                <ResultRow 
+                    label="Social Security Tax" 
+                    value={formatCurrency(results.socialSecurityTax)} 
+                />
+                <ResultRow 
+                    label="Medicare Tax (Regular)" 
+                    value={formatCurrency(results.medicareTax)} 
+                    isSubtle={results.additionalMedicareTax > 0}
+                />
+                {results.additionalMedicareTax > 0 && (
+                    <ResultRow 
+                        label="Additional Medicare Tax" 
+                        value={formatCurrency(results.additionalMedicareTax)} 
+                        isSubtle={true}
+                    />
+                )}
+                <ResultRow 
+                    label="Total Self-Employment Tax" 
+                    value={formatCurrency(results.totalSelfEmploymentTax)} 
+                    isTotal={true}
+                />
+            </div>
+
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                <h3 className="text-md font-semibold text-blue-700 mb-1">
+                    For Your Income Tax Return:
+                </h3>
+                <p className="text-sm text-blue-600">
+                    Deductible Part of SE Tax (1/2 of Total SE Tax): 
+                    <span className="font-bold ml-1">{formatCurrency(results.deductibleSETax)}</span>
+                </p>
+                <p className="text-xs text-blue-500 mt-2">
+                    This amount can typically be deducted as an adjustment to income on your Form 1040.
+                </p>
+            </div>
+
+            {(results.socialSecurityTax > 0 || totalMedicareTax > 0) && (
+                <div className="bg-gray-50 p-4 md:p-6 rounded-lg my-6 border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-4 text-center">
+                        Tax Breakdown
+                    </h3>
+                    <div className="flex justify-center">
+                        <PieChartDisplay
+                            socialSecurityTax={results.socialSecurityTax}
+                            totalMedicareTax={totalMedicareTax}
+                        />
                     </div>
-
-                    <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-6 pb-3 border-b-2 border-blue-500">
-                        Calculation Results
-                    </h2>
-                    
-                    {results.warnings.length > 0 && (
-                        <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 rounded-md">
-                            {results.warnings.map((warning, index) => (
-                                <p key={index} className="text-sm">{warning}</p>
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="space-y-0 overflow-hidden rounded-md border border-gray-200 shadow-sm mb-6">
-                        <ResultRow 
-                            label="Net Self-Employment Earnings (Subject to SE Tax)" 
-                            value={formatCurrency(results.netSelfEmploymentEarnings)} 
-                        />
-                        <ResultRow 
-                            label="Social Security Tax" 
-                            value={formatCurrency(results.socialSecurityTax)} 
-                        />
-                        <ResultRow 
-                            label="Medicare Tax (Regular)" 
-                            value={formatCurrency(results.medicareTax)} 
-                            isSubtle={results.additionalMedicareTax > 0}
-                        />
-                        {results.additionalMedicareTax > 0 && (
-                            <ResultRow 
-                                label="Additional Medicare Tax" 
-                                value={formatCurrency(results.additionalMedicareTax)} 
-                                isSubtle={true}
-                            />
-                        )}
-                        <ResultRow 
-                            label="Total Self-Employment Tax" 
-                            value={formatCurrency(results.totalSelfEmploymentTax)} 
-                            isTotal={true}
-                        />
-                    </div>
-
-                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-                        <h3 className="text-md font-semibold text-blue-700 mb-1">
-                            For Your Income Tax Return:
-                        </h3>
-                        <p className="text-sm text-blue-600">
-                            Deductible Part of SE Tax (1/2 of Total SE Tax): 
-                            <span className="font-bold ml-1">{formatCurrency(results.deductibleSETax)}</span>
-                        </p>
-                        <p className="text-xs text-blue-500 mt-2">
-                            This amount can typically be deducted as an adjustment to income on your Form 1040.
-                        </p>
-                    </div>
-
-                    {(results.socialSecurityTax > 0 || totalMedicareTax > 0) && (
-                        <div className="bg-gray-50 p-4 md:p-6 rounded-lg my-6 border border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-4 text-center">
-                                Tax Breakdown
-                            </h3>
-                            <div className="flex justify-center">
-                                <PieChartDisplay
-                                    socialSecurityTax={results.socialSecurityTax}
-                                    totalMedicareTax={totalMedicareTax}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-        };
+                </div>
+            )}
+        </div>
+    );
+};
 
         const CalculatorForm = ({ onCalculate, initialValues }) => {
             const [inputs, setInputs] = useState(initialValues);
